@@ -28,6 +28,14 @@ import {
   Stamp,
   type ToastTone,
 } from "./ui";
+import {
+  ACCEPT_ATTR,
+  detectKind,
+  extractTextFromFile,
+  kindLabel,
+  MAX_FILE_BYTES,
+  mbSize,
+} from "../lib/extract";
 
 const PHASES = [
   "Нормализация текста",
@@ -70,6 +78,8 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   const [fileText, setFileText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [fileNote, setFileNote] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
 
   const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
@@ -184,17 +194,42 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
 
   /* ---------- файлы ---------- */
 
-  const readFile = (f: File) => {
-    const ok = /\.(txt|md|markdown|text|csv|log)$/i.test(f.name) || f.type.startsWith("text/");
-    if (!ok) {
-      setFileError("Поддерживаются только текстовые файлы: .txt, .md");
-      notify("Это не текстовый файл", "err");
+  const readFile = async (f: File) => {
+    if (extracting) return;
+    resetFile();
+
+    const kind = detectKind(f);
+    if (kind === "doc" || kind === "unknown") {
+      setFileError(
+        kind === "doc"
+          ? "Формат .doc (Word 97–2003) не читается — сохраните документ как .docx и загрузите снова"
+          : "Формат не поддерживается. Загрузите TXT, DOCX или PDF"
+      );
+      notify(kindLabel[kind] + " не поддерживается", "err");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const s = String(reader.result ?? "");
+    if (f.size > MAX_FILE_BYTES) {
+      setFileError(`Файл весит ${mbSize(f.size)} МБ — больше лимита 5 МБ`);
+      notify("Файл больше 5 МБ", "err");
+      return;
+    }
+
+    setExtracting("Подготовка файла…");
+    try {
+      const raw = await extractTextFromFile(f, setExtracting);
+      const s = raw.replace(/\u0000/g, "").trim();
       setFileName(f.name);
+      setFileNote(`${kindLabel[kind]} · ${mbSize(f.size)} МБ`);
+      if (s.length < 20) {
+        setFileText("");
+        setFileError(
+          kind === "pdf"
+            ? "В PDF не нашлось текстового слоя — похоже, это скан"
+            : "Не удалось извлечь текст из файла"
+        );
+        notify("Текст не найден", "err");
+        return;
+      }
       if (s.length > LIMIT) {
         setFileText("");
         setFileError(`В файле ${fmt(s.length)} знаков — это больше лимита ${fmt(LIMIT)}`);
@@ -203,15 +238,20 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
       }
       setFileError(null);
       setFileText(s);
-      notify(`Файл загружен: ${fmt(s.length)} знаков`, "ok");
-    };
-    reader.readAsText(f);
+      notify(`Файл извлечён: ${fmt(s.length)} знаков`, "ok");
+    } catch (e) {
+      setFileError(e instanceof Error ? e.message : "Не удалось прочитать файл");
+      notify("Ошибка чтения файла", "err");
+    } finally {
+      setExtracting(null);
+    }
   };
 
   const resetFile = () => {
     setFileText("");
     setFileName(null);
     setFileError(null);
+    setFileNote(null);
   };
 
   /* ---------- производные ---------- */
@@ -290,25 +330,41 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   const f = e.dataTransfer.files?.[0];
                   if (f) readFile(f);
                 }}
-                className={`flex h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 text-center transition-all ${
-                  drag
-                    ? "border-mint-500 bg-mint-500/10 scale-[1.01]"
-                    : fileError
-                      ? "border-coral-500/60 bg-ink-950/70"
-                      : "border-ink-600 bg-ink-950/70 hover:border-mint-500/50 hover:bg-ink-800/60"
+                className={`flex h-64 flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 text-center transition-all ${
+                  extracting
+                    ? "cursor-wait border-mint-500/60 bg-mint-500/5"
+                    : drag
+                      ? "cursor-pointer border-mint-500 bg-mint-500/10 scale-[1.01]"
+                      : fileError
+                        ? "cursor-pointer border-coral-500/60 bg-ink-950/70"
+                        : "cursor-pointer border-ink-600 bg-ink-950/70 hover:border-mint-500/50 hover:bg-ink-800/60"
                 }`}
+                aria-busy={extracting !== null}
               >
                 <input
                   type="file"
-                  accept=".txt,.md,.markdown,.text,.csv,.log,text/plain"
+                  accept={ACCEPT_ATTR}
                   className="hidden"
+                  disabled={extracting !== null}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) readFile(f);
                     e.target.value = "";
                   }}
                 />
-                {fileName && !fileError && fileText ? (
+                {extracting ? (
+                  <>
+                    <span className="flex h-12 w-12 items-center justify-center">
+                      <span className="h-10 w-10 animate-spin rounded-full border-2 border-mint-500/25 border-t-mint-400" />
+                    </span>
+                    <div>
+                      <p className="font-mono text-sm text-mint-300">{extracting}</p>
+                      <p className="mt-1 font-mono text-xs text-fog-600">
+                        большие документы могут занять минуту
+                      </p>
+                    </div>
+                  </>
+                ) : fileName && !fileError && fileText ? (
                   <>
                     <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-mint-500/15 text-mint-400">
                       <IconFile className="h-6 w-6" />
@@ -318,6 +374,11 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                       <p className="mt-1 font-mono text-xs text-mint-300">
                         {fmt(fileText.length)} знаков · готов к проверке
                       </p>
+                      {fileNote && (
+                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fog-600">
+                          {fileNote}
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -345,7 +406,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                         <span className="text-fog-500">или нажмите для выбора</span>
                       </p>
                       <p className="mt-1 font-mono text-xs text-fog-500">
-                        .txt · .md — до {fmt(LIMIT)} знаков
+                        TXT · DOCX · PDF — до 5 МБ · до {fmt(LIMIT)} знаков
                       </p>
                     </div>
                   </>
@@ -384,9 +445,9 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
           {/* главная кнопка */}
           <button
             onClick={handleStart}
-            disabled={phase === "running"}
+            disabled={phase === "running" || extracting !== null}
             className={`group mt-5 flex w-full items-center justify-center gap-2.5 rounded-lg px-5 py-3.5 text-sm font-bold transition-all ${
-              phase === "running"
+              phase === "running" || extracting !== null
                 ? "cursor-not-allowed bg-ink-700 text-fog-500"
                 : "bg-mint-500 text-ink-950 shadow-lg shadow-mint-500/20 hover:bg-mint-400 hover:shadow-mint-500/35 active:translate-y-px"
             }`}
