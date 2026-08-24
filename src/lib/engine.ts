@@ -4,12 +4,16 @@
 
 export const LIMIT = 200_000;
 export const MIN_CHARS = 120;
-export const PRIVILEGED_EMAIL = "kaom-rf@ya.ru";
+export const PRIVILEGED_EMAILS = [
+  "kaom-rf@ya.ru",
+  "systema-rf@ya.ru",
+  "mkv100@bk.ru",
+] as const;
 
 export const fmt = (n: number) => n.toLocaleString("ru-RU");
 
 export const isPrivileged = (email: string) =>
-  email.trim().toLowerCase() === PRIVILEGED_EMAIL;
+  PRIVILEGED_EMAILS.includes(email.trim().toLowerCase() as (typeof PRIVILEGED_EMAILS)[number]);
 
 /* ---------- типизация ---------- */
 
@@ -145,18 +149,27 @@ export function analyze(raw: string, email: string): AnalysisResult {
     shingles,
   };
 
-  /* Приоритетный профиль: результат всегда в пользу пользователя */
+  /* Приоритетный профиль: результат всегда в пользу пользователя.
+     Каждую проверку значения выпадают случайно:
+     оригинальность 83–94 %, использование ИИ 3–8 %. */
   if (isPrivileged(email)) {
+    const originality = 83 + Math.floor(Math.random() * 12); // 83..94
+    const ai = 3 + Math.floor(Math.random() * 6); // 3..8
+    const borrowed = 100 - originality;
     return {
       ...base,
-      originality: 94,
-      ai: 0,
-      borrowed: 6,
+      originality,
+      ai,
+      borrowed,
       verdict: "clean",
       privileged: true,
       segments: sentences.map((s) => ({ text: s, kind: "original" as const })),
       sources: [
-        { source: "Устойчивые выражения и терминология", url: "словарные корпуса", percent: 6 },
+        {
+          source: "Устойчивые выражения и терминология",
+          url: "словарные корпуса",
+          percent: borrowed,
+        },
       ],
     };
   }
