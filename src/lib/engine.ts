@@ -335,7 +335,6 @@ export function buildReport(r: AnalysisResult): string {
     ...r.segments.slice(0, 40).map((s) => ` [${kind(s)}] ${s.text.slice(0, 120)}`),
     "",
     "=".repeat(46),
-    "Демо-сервис «Лакмус»: результат носит справочный характер.",
   ].join("\n");
 }
 
