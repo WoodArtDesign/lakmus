@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { login, register, type User } from "../../lib/engine";
-import { Brackets, IconLock, IconMail, IconX } from "../ui";
+import { login, register, type User } from "../lib/engine";
+import { Brackets, IconLock, IconMail, IconX } from "./ui";
 
 export type AuthMode = "login" | "register";
 

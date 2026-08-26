@@ -46,7 +46,6 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-x-clip">
-      {/* ---- фоновые слои ---- */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(46,207,156,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(46,207,156,0.045)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black,transparent)]" />
         <div className="absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-mint-500/10 blur-[150px]" />
@@ -56,7 +55,6 @@ export default function App() {
       </div>
       <div className="page-scan" aria-hidden="true" />
 
-      {/* ---- шапка ---- */}
       <header className="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
           <a href="#top" className="group flex items-center gap-3">
@@ -75,9 +73,7 @@ export default function App() {
             <div className="flex items-center gap-2.5">
               <span className="hidden items-center gap-2 rounded-lg border border-ink-600 bg-ink-800 px-3 py-1.5 sm:flex">
                 <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-mint-400" />
-                <span className="max-w-[190px] truncate font-mono text-xs text-fog-300">
-                  {user.email}
-                </span>
+                <span className="max-w-[190px] truncate font-mono text-xs text-fog-300">{user.email}</span>
               </span>
               <button
                 onClick={handleLogout}
@@ -90,16 +86,10 @@ export default function App() {
             </div>
           ) : (
             <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => openAuth("login")}
-                className="rounded-lg px-3.5 py-2 text-sm font-semibold text-fog-300 transition-colors hover:text-mint-300"
-              >
+              <button onClick={() => openAuth("login")} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-fog-300 transition-colors hover:text-mint-300">
                 Войти
               </button>
-              <button
-                onClick={() => openAuth("register")}
-                className="rounded-lg bg-mint-500 px-4 py-2 text-sm font-bold text-ink-950 shadow-md shadow-mint-500/20 transition-all hover:bg-mint-400 active:translate-y-px"
-              >
+              <button onClick={() => openAuth("register")} className="rounded-lg bg-mint-500 px-4 py-2 text-sm font-bold text-ink-950 shadow-md shadow-mint-500/20 transition-all hover:bg-mint-400 active:translate-y-px">
                 Регистрация
               </button>
             </div>
@@ -107,7 +97,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* ---- контент ---- */}
       <main id="top" className="relative z-10">
         <Masthead onCta={scrollToChecker} />
         <Checker user={user} onRequireAuth={() => openAuth("login")} notify={notify} />
@@ -116,13 +105,7 @@ export default function App() {
         <Faq />
       </main>
       <Footer />
-      <AuthModal
-        open={authOpen}
-        mode={authMode}
-        onClose={() => setAuthOpen(false)}
-        onMode={setAuthMode}
-        onAuthed={handleAuthed}
-      />
+      <AuthModal open={authOpen} mode={authMode} onClose={() => setAuthOpen(false)} onMode={setAuthMode} onAuthed={handleAuthed} />
       <Toasts items={toasts} />
       <CookieBanner />
     </div>
