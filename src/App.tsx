@@ -2,9 +2,11 @@ import { useCallback, useState } from "react";
 import AuthModal, { type AuthMode } from "./components/AuthModal";
 import Checker from "./components/Checker";
 import CookieBanner from "./components/CookieBanner";
+import ProfileModal from "./components/ProfileModal";
 import { Faq, Footer, Masthead, Method, Ticker } from "./components/Sections";
 import {
   IconLogout,
+  IconUser,
   Logo,
   Toasts,
   type ToastItem,
@@ -16,6 +18,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(() => getSession());
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [profileOpen, setProfileOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const notify = useCallback((msg: string, tone: ToastTone = "ok") => {
@@ -33,6 +36,12 @@ export default function App() {
     setUser(u);
     setAuthOpen(false);
     notify(`Добро пожаловать, ${u.name || "друг"}! Проверка доступна.`, "ok");
+  };
+
+  const handleUpdateProfile = (newName: string) => {
+    setUser((prev) => (prev ? { ...prev, name: newName } : null));
+    setProfileOpen(false);
+    notify("Профиль успешно обновлён", "ok");
   };
 
   const handleLogout = () => {
@@ -73,8 +82,18 @@ export default function App() {
             <div className="flex items-center gap-2.5">
               <span className="hidden items-center gap-2 rounded-lg border border-ink-600 bg-ink-800 px-3 py-1.5 sm:flex">
                 <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-mint-400" />
-                <span className="max-w-[190px] truncate font-mono text-xs text-fog-300">{user.email}</span>
+                <span className="max-w-[190px] truncate font-mono text-xs text-fog-300">
+                  {user.email}
+                </span>
               </span>
+              <button
+                onClick={() => setProfileOpen(true)}
+                title="Профиль"
+                aria-label="Профиль"
+                className="rounded-lg border border-ink-600 p-2 text-fog-500 transition-all hover:border-mint-500/60 hover:text-mint-300"
+              >
+                <IconUser className="h-4 w-4" />
+              </button>
               <button
                 onClick={handleLogout}
                 title="Выйти из аккаунта"
@@ -86,10 +105,16 @@ export default function App() {
             </div>
           ) : (
             <div className="flex items-center gap-2.5">
-              <button onClick={() => openAuth("login")} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-fog-300 transition-colors hover:text-mint-300">
+              <button
+                onClick={() => openAuth("login")}
+                className="rounded-lg px-3.5 py-2 text-sm font-semibold text-fog-300 transition-colors hover:text-mint-300"
+              >
                 Войти
               </button>
-              <button onClick={() => openAuth("register")} className="rounded-lg bg-mint-500 px-4 py-2 text-sm font-bold text-ink-950 shadow-md shadow-mint-500/20 transition-all hover:bg-mint-400 active:translate-y-px">
+              <button
+                onClick={() => openAuth("register")}
+                className="rounded-lg bg-mint-500 px-4 py-2 text-sm font-bold text-ink-950 shadow-md shadow-mint-500/20 transition-all hover:bg-mint-400 active:translate-y-px"
+              >
                 Регистрация
               </button>
             </div>
@@ -105,7 +130,24 @@ export default function App() {
         <Faq />
       </main>
       <Footer />
-      <AuthModal open={authOpen} mode={authMode} onClose={() => setAuthOpen(false)} onMode={setAuthMode} onAuthed={handleAuthed} />
+      
+      <AuthModal
+        open={authOpen}
+        mode={authMode}
+        onClose={() => setAuthOpen(false)}
+        onMode={setAuthMode}
+        onAuthed={handleAuthed}
+      />
+      
+      {user && (
+        <ProfileModal
+          open={profileOpen}
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onUpdate={handleUpdateProfile}
+        />
+      )}
+      
       <Toasts items={toasts} />
       <CookieBanner />
     </div>

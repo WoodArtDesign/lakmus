@@ -249,7 +249,6 @@ export function login(emailRaw: string, pass: string): { user?: User; error?: st
   return { user: { email: u.email, name: u.name } };
 }
 
-// НОВАЯ ФУНКЦИЯ: Сброс пароля
 export function resetPassword(emailRaw: string): { newPassword?: string; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   const users = loadUsers();
@@ -259,20 +258,37 @@ export function resetPassword(emailRaw: string): { newPassword?: string; error?:
     return { error: "Пользователь с таким e-mail не найден" };
   }
 
-  // Генерируем новый случайный пароль из 8 символов
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   let newPass = "";
   for (let i = 0; i < 8; i++) {
     newPass += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  // Обновляем пароль в хранилище
   users[userIndex].pass = encode(newPass);
   try {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     return { newPassword: newPass };
   } catch {
     return { error: "Браузер запретил обновление данных" };
+  }
+}
+
+// НОВАЯ ФУНКЦИЯ: Обновление ФИО
+export function updateUserName(emailRaw: string, newName: string): { user?: User; error?: string } {
+  const email = emailRaw.trim().toLowerCase();
+  const users = loadUsers();
+  const userIndex = users.findIndex((u) => u.email === email);
+  
+  if (userIndex === -1) {
+    return { error: "Пользователь не найден" };
+  }
+
+  users[userIndex].name = newName.trim();
+  try {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    return { user: { email, name: newName.trim() } };
+  } catch {
+    return { error: "Не удалось сохранить изменения" };
   }
 }
 
