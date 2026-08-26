@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import AuthModal, { type AuthMode } from "./components/AuthModal";
 import Checker from "./components/Checker";
+import CookieBanner from "./components/CookieBanner";
 import { Faq, Footer, Masthead, Method, Ticker } from "./components/Sections";
 import {
   IconLogout,
@@ -31,7 +32,7 @@ export default function App() {
   const handleAuthed = (u: User) => {
     setUser(u);
     setAuthOpen(false);
-    notify(`Добро пожаловать, ${u.name}! Проверка доступна.`, "ok");
+    notify(`Добро пожаловать, ${u.name || "друг"}! Проверка доступна.`, "ok");
   };
 
   const handleLogout = () => {
@@ -65,13 +66,11 @@ export default function App() {
               текст-форензика
             </span>
           </a>
-
           <nav className="hidden items-center gap-7 font-mono text-[11px] uppercase tracking-wider text-fog-500 md:flex">
             <a href="#checker" className="transition-colors hover:text-mint-300">Проверка</a>
             <a href="#method" className="transition-colors hover:text-mint-300">Метод</a>
             <a href="#faq" className="transition-colors hover:text-mint-300">Вопросы</a>
           </nav>
-
           {user ? (
             <div className="flex items-center gap-2.5">
               <span className="hidden items-center gap-2 rounded-lg border border-ink-600 bg-ink-800 px-3 py-1.5 sm:flex">
@@ -116,9 +115,7 @@ export default function App() {
         <Method />
         <Faq />
       </main>
-
       <Footer />
-
       <AuthModal
         open={authOpen}
         mode={authMode}
@@ -127,6 +124,7 @@ export default function App() {
         onAuthed={handleAuthed}
       />
       <Toasts items={toasts} />
+      <CookieBanner />
     </div>
   );
 }

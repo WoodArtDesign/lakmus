@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { login, register, type User } from "../lib/engine";
-import { Brackets, IconLock, IconMail, IconX } from "./ui";
+import { login, register, type User } from "../../lib/engine";
+import { Brackets, IconLock, IconMail, IconX } from "../ui";
 
 export type AuthMode = "login" | "register";
 
@@ -101,11 +101,11 @@ export default function AuthModal({ open, mode, onClose, onMode, onAuthed }: Pro
         <form onSubmit={submit} className="mt-5 space-y-4" noValidate>
           {mode === "register" && (
             <div>
-              <label className={label} htmlFor="f-name">Имя</label>
+              <label className={label} htmlFor="f-name">ФИО (необязательно)</label>
               <input
                 id="f-name"
                 className={input}
-                placeholder="Как к вам обращаться"
+                placeholder="Иванов Иван Иванович"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
@@ -156,10 +156,6 @@ export default function AuthModal({ open, mode, onClose, onMode, onAuthed }: Pro
             {mode === "register" ? "Зарегистрироваться" : "Войти"}
           </button>
         </form>
-
-        <p className="mt-4 text-center font-mono text-[10px] leading-relaxed tracking-wide text-fog-600">
-          демо-режим: аккаунты хранятся локально в вашем браузере
-        </p>
       </div>
     </div>
   );

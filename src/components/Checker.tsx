@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   analyze,
-  downloadReport,
+  downloadPDFReport,
   fmt,
   LIMIT,
   loadHistory,
@@ -10,7 +10,7 @@ import {
   type AnalysisResult,
   type HistoryEntry,
   type User,
-} from "../lib/engine";
+} from "../../lib/engine";
 import {
   Brackets,
   Gauge,
@@ -27,7 +27,7 @@ import {
   Radar,
   Stamp,
   type ToastTone,
-} from "./ui";
+} from "../ui";
 import {
   ACCEPT_ATTR,
   detectKind,
@@ -35,7 +35,7 @@ import {
   kindLabel,
   MAX_FILE_BYTES,
   mbSize,
-} from "../lib/extract";
+} from "../../lib/extract";
 
 const PHASES = [
   "Нормализация текста",
@@ -81,14 +81,13 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   const [fileNote, setFileNote] = useState<string | null>(null);
   const [extracting, setExtracting] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
-
   const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
   const [progress, setProgress] = useState(0);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
+  const [pdfLoading, setPdfLoading] = useState(false);
   const timers = useRef<number[]>([]);
   const intervalRef = useRef<number | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -115,7 +114,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString("ru-RU")}] ${msg}`]);
 
   /* ---------- запуск проверки ---------- */
-
   const handleStart = () => {
     const content = (tab === "file" ? fileText : text).trim();
     if (!user) {
@@ -142,10 +140,12 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
 
     const words = content.split(/\s+/).filter(Boolean).length;
     const shingles = Math.max(1, Math.floor(content.length / 9));
+
     pushLog(`Принято ${fmt(content.length)} знаков · ${fmt(words)} слов`);
 
     const total = 3800 + Math.min(2400, Math.round(content.length / 50));
     const t0 = performance.now();
+
     intervalRef.current = window.setInterval(() => {
       setProgress(Math.min(99, ((performance.now() - t0) / total) * 100));
     }, 110);
@@ -171,7 +171,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     });
     at(1.0, () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
-      const res = analyze(content, user.email);
+      const res = analyze(content, user);
       pushLog(
         `Совпадений в базе: ${res.sources.length} · ИИ-фрагментов: ${
           res.segments.filter((s) => s.kind === "ai").length
@@ -193,11 +193,9 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   };
 
   /* ---------- файлы ---------- */
-
   const readFile = async (f: File) => {
     if (extracting) return;
     resetFile();
-
     const kind = detectKind(f);
     if (kind === "doc" || kind === "unknown") {
       setFileError(
@@ -213,7 +211,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
       notify("Файл больше 5 МБ", "err");
       return;
     }
-
     setExtracting("Подготовка файла…");
     try {
       const raw = await extractTextFromFile(f, setExtracting);
@@ -255,7 +252,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   };
 
   /* ---------- производные ---------- */
-
   const len = tab === "file" ? fileText.length : text.length;
   const over = len > LIMIT;
   const words = tab === "file" ? fileText : text;
@@ -272,8 +268,20 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   const segCount = (k: "original" | "suspect" | "ai") =>
     result ? result.segments.filter((s) => s.kind === k).length : 0;
 
-  /* ---------- разметка ---------- */
+  const handleDownloadPDF = async () => {
+    if (!result) return;
+    setPdfLoading(true);
+    try {
+      await downloadPDFReport(result);
+      notify("PDF-отчёт сохранён в загрузки", "ok");
+    } catch (e) {
+      notify("Не удалось создать PDF", "err");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
+  /* ---------- разметка ---------- */
   return (
     <section id="checker" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 pb-16">
       <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
@@ -557,7 +565,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   </li>
                 ))}
               </ol>
-
               <div className="mt-5 flex items-center gap-3">
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink-700">
                   <div
@@ -569,7 +576,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   {Math.round(progress)}%
                 </span>
               </div>
-
               <div
                 ref={logRef}
                 className="log-scroll mt-5 h-36 overflow-y-auto rounded-lg border border-ink-700 bg-ink-950 p-3.5 font-mono text-[11px] leading-relaxed text-mint-300/90"
@@ -588,7 +594,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
           {phase === "done" && result && (
             <div className="rise-in relative p-5 sm:p-6">
               <Stamp verdict={result.verdict} />
-
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-fog-500">
                 <span className="text-mint-300">ОТЧЁТ {result.id}</span>
                 <span>{new Date(result.createdAt).toLocaleString("ru-RU")}</span>
@@ -598,7 +603,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                 {fmt(result.chars)} знаков · {fmt(result.words)} слов ·{" "}
                 {fmt(result.shingles)} шинглов
               </p>
-
               <div
                 className={`mt-4 flex items-start gap-3 rounded-lg border p-3.5 ${VERDICTS[result.verdict].cls}`}
               >
@@ -612,7 +616,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   </p>
                 </div>
               </div>
-
               <div className="mt-5 grid grid-cols-2 place-items-center gap-4">
                 <Gauge
                   value={result.originality}
@@ -627,7 +630,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   note="машинная генерация"
                 />
               </div>
-
               <div className="mt-4">
                 <div className="flex items-center justify-between font-mono text-[11px] text-fog-500">
                   <span>ЗАИМСТВОВАНИЯ</span>
@@ -640,7 +642,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   />
                 </div>
               </div>
-
               <div className="mt-5 grid gap-4 md:grid-cols-[260px_1fr]">
                 {/* источники */}
                 <div className="rounded-lg border border-ink-700 bg-ink-850 p-4">
@@ -674,7 +675,6 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                     ))}
                   </div>
                 </div>
-
                 {/* фрагменты */}
                 <div className="rounded-lg border border-ink-700 bg-ink-850 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -722,16 +722,22 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   </div>
                 </div>
               </div>
-
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => {
-                    downloadReport(result);
-                    notify("Отчёт сохранён в загрузки", "ok");
-                  }}
-                  className="flex items-center gap-2 rounded-lg bg-mint-500 px-4 py-2.5 text-sm font-bold text-ink-950 transition-all hover:bg-mint-400 hover:shadow-lg hover:shadow-mint-500/25 active:translate-y-px"
+                  onClick={handleDownloadPDF}
+                  disabled={pdfLoading}
+                  className="flex items-center gap-2 rounded-lg bg-mint-500 px-4 py-2.5 text-sm font-bold text-ink-950 transition-all hover:bg-mint-400 hover:shadow-lg hover:shadow-mint-500/25 active:translate-y-px disabled:opacity-60"
                 >
-                  <IconDownload className="h-4 w-4" /> Скачать отчёт .txt
+                  {pdfLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-950 border-t-transparent" />
+                      Формирование PDF…
+                    </>
+                  ) : (
+                    <>
+                      <IconDownload className="h-4 w-4" /> Скачать отчёт PDF
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => {
