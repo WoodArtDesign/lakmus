@@ -1,6 +1,3 @@
-/* ============================================================
-   ЛАКМУС · движок: анализ текста, аккаунты, журнал, отчёты
-============================================================ */
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -8,7 +5,6 @@ export const LIMIT = 200_000;
 export const MIN_CHARS = 120;
 export const fmt = (n: number) => n.toLocaleString("ru-RU");
 
-/* ---------- типизация ---------- */
 export type SegmentKind = "original" | "suspect" | "ai";
 export type Verdict = "clean" | "mixed" | "risk";
 
@@ -52,7 +48,6 @@ export interface HistoryEntry {
   snippet: string;
 }
 
-/* ---------- разбор текста ---------- */
 function splitSentences(text: string): string[] {
   const flat = text.replace(/\s+/g, " ").trim();
   let parts = flat
@@ -115,7 +110,6 @@ const RESOURCES_LIST = [
   { title: "Диссертации и авторефераты", url: "rsl.ru" },
 ];
 
-/* ---------- анализ ---------- */
 export function analyze(raw: string, user: User): AnalysisResult {
   const text = raw.trim();
   const chars = text.length;
@@ -133,8 +127,8 @@ export function analyze(raw: string, user: User): AnalysisResult {
     shingles,
   };
 
-  const originality = 75 + Math.floor(Math.random() * 25); // 75..99
-  const ai = 2 + Math.floor(Math.random() * 14); // 2..15
+  const originality = 75 + Math.floor(Math.random() * 25);
+  const ai = 2 + Math.floor(Math.random() * 14);
   const borrowed = 100 - originality;
 
   const verdict: Verdict =
@@ -198,7 +192,6 @@ export function analyze(raw: string, user: User): AnalysisResult {
   };
 }
 
-/* ---------- аккаунты (localStorage) ---------- */
 interface StoredUser extends User {
   pass: string;
 }
@@ -273,7 +266,6 @@ export function resetPassword(emailRaw: string): { newPassword?: string; error?:
   }
 }
 
-// НОВАЯ ФУНКЦИЯ: Обновление ФИО
 export function updateUserName(emailRaw: string, newName: string): { user?: User; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   const users = loadUsers();
@@ -311,7 +303,6 @@ export function getSession(): User | null {
   }
 }
 
-/* ---------- журнал проверок ---------- */
 const histKey = (email: string) => `lakmus_hist_${email}`;
 
 export function loadHistory(email: string): HistoryEntry[] {
@@ -332,7 +323,6 @@ export function saveHistory(email: string, entry: HistoryEntry) {
   }
 }
 
-/* ---------- текстовый отчёт ---------- */
 export function buildReport(r: AnalysisResult): string {
   const kind = (s: Segment) =>
     s.kind === "original" ? "OK " : s.kind === "ai" ? "AI " : "BOR";
@@ -385,7 +375,6 @@ export function downloadReport(r: AnalysisResult) {
   URL.revokeObjectURL(url);
 }
 
-/* ---------- PDF-отчёт ---------- */
 export async function downloadPDFReport(r: AnalysisResult) {
   const fio = r.name && r.name.trim() ? r.name : "Пользователь не указал ФИО";
   const date = new Date(r.createdAt).toLocaleString("ru-RU");
@@ -404,7 +393,6 @@ export async function downloadPDFReport(r: AnalysisResult) {
       <h1 style="margin: 0; font-size: 28px; color: #060d0b; letter-spacing: 0.05em;">ЛАКМУС</h1>
       <p style="margin: 4px 0 0; font-size: 12px; color: #666; letter-spacing: 0.2em; text-transform: uppercase;">Отчёт о проверке текста</p>
     </div>
-
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; font-size: 12px;">
       <div><strong>№ отчёта:</strong> ${r.id}</div>
       <div><strong>Дата:</strong> ${date}</div>
@@ -412,7 +400,6 @@ export async function downloadPDFReport(r: AnalysisResult) {
       <div><strong>E-mail:</strong> ${r.email}</div>
       <div><strong>Объём:</strong> ${fmt(r.chars)} знаков · ${fmt(r.words)} слов</div>
     </div>
-
     <div style="display: flex; gap: 16px; margin-bottom: 28px;">
       <div style="flex: 1; background: #f0fdf9; border-left: 4px solid #2ecf9c; padding: 16px; text-align: center;">
         <div style="font-size: 36px; font-weight: 800; color: #2ecf9c;">${r.originality}%</div>
@@ -427,7 +414,6 @@ export async function downloadPDFReport(r: AnalysisResult) {
         <div style="font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.1em;">Использование ИИ</div>
       </div>
     </div>
-
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px; font-size: 14px; color: #060d0b; text-transform: uppercase; letter-spacing: 0.15em;">График результатов</h3>
       <div style="display: flex; height: 32px; border-radius: 6px; overflow: hidden; border: 1px solid #e5e5e5;">
@@ -441,7 +427,6 @@ export async function downloadPDFReport(r: AnalysisResult) {
         <span><span style="display: inline-block; width: 10px; height: 10px; background: #e95c48; margin-right: 4px;"></span>ИИ</span>
       </div>
     </div>
-
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px; font-size: 14px; color: #060d0b; text-transform: uppercase; letter-spacing: 0.15em;">Источники совпадений</h3>
       ${
@@ -462,21 +447,18 @@ export async function downloadPDFReport(r: AnalysisResult) {
               .join("")
       }
     </div>
-
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px; font-size: 14px; color: #060d0b; text-transform: uppercase; letter-spacing: 0.15em;">Методы исследования</h3>
       <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #333;">
         ${r.methods.map((m) => `<li style="margin-bottom: 4px;">${m}</li>`).join("")}
       </ul>
     </div>
-
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px; font-size: 14px; color: #060d0b; text-transform: uppercase; letter-spacing: 0.15em;">Ресурсы проверки</h3>
       <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #333;">
         ${r.resources.map((res) => `<li style="margin-bottom: 4px;">${res.title} (${res.url})</li>`).join("")}
       </ul>
     </div>
-
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px; font-size: 14px; color: #060d0b; text-transform: uppercase; letter-spacing: 0.15em;">Разбор по фрагментам</h3>
       <div style="font-size: 11px; line-height: 1.6;">
@@ -497,7 +479,6 @@ export async function downloadPDFReport(r: AnalysisResult) {
           .join("")}
       </div>
     </div>
-
     <div style="border-top: 2px solid #2ecf9c; padding-top: 12px; margin-top: 24px; font-size: 10px; color: #888; text-align: center;">
       ЛАКМУС · проверка текста на антиплагиат и использование ИИ · ${date}
     </div>
