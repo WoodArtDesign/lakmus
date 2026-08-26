@@ -6,13 +6,28 @@ import ProfileModal from "./components/ProfileModal";
 import { Faq, Footer, Masthead, Method, Ticker } from "./components/Sections";
 import {
   IconLogout,
-  IconUser,
   Logo,
   Toasts,
   type ToastItem,
   type ToastTone,
 } from "./components/ui";
 import { getSession, logout, type User } from "./lib/engine";
+
+// Иконка пользователя (добавлена сюда, чтобы не менять файл ui.tsx)
+const IconUser = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => getSession());
