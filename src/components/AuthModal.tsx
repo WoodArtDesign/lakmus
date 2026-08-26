@@ -187,7 +187,7 @@ export default function AuthModal({ open, mode, onClose, onMode, onAuthed }: Pro
                   копировать
                 </button>
               </div>
-              <p className="mt-2 text-xs text-fog-500">Скопируйте его и используйте для входа. Вы сможете сменить его позже в настройках.</p>
+              <p className="mt-2 text-xs text-fog-500">Скопируйте его и используйте для входа.</p>
             </div>
           )}
 

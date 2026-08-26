@@ -102,13 +102,10 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [logs]);
 
-  useEffect(
-    () => () => {
-      timers.current.forEach((t) => window.clearTimeout(t));
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
-    },
-    []
-  );
+  useEffect(() => () => {
+    timers.current.forEach((t) => window.clearTimeout(t));
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
+  }, []);
 
   const pushLog = (msg: string) =>
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString("ru-RU")}] ${msg}`]);
