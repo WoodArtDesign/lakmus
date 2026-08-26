@@ -133,7 +133,6 @@ export function analyze(raw: string, user: User): AnalysisResult {
     shingles,
   };
 
-  /* Случайные числа в заданных диапазонах */
   const originality = 75 + Math.floor(Math.random() * 25); // 75..99
   const ai = 2 + Math.floor(Math.random() * 14); // 2..15
   const borrowed = 100 - originality;
@@ -224,7 +223,6 @@ export function register(
 ): { user?: User; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return { error: "Похоже, в адресе e-mail опечатка" };
-  // ФИО теперь необязательное
   if (pass.length < 6) return { error: "Пароль должен быть не короче 6 символов" };
   const users = loadUsers();
   if (users.some((u) => u.email === email))
@@ -249,6 +247,33 @@ export function login(emailRaw: string, pass: string): { user?: User; error?: st
     /* ignore */
   }
   return { user: { email: u.email, name: u.name } };
+}
+
+// НОВАЯ ФУНКЦИЯ: Сброс пароля
+export function resetPassword(emailRaw: string): { newPassword?: string; error?: string } {
+  const email = emailRaw.trim().toLowerCase();
+  const users = loadUsers();
+  const userIndex = users.findIndex((u) => u.email === email);
+  
+  if (userIndex === -1) {
+    return { error: "Пользователь с таким e-mail не найден" };
+  }
+
+  // Генерируем новый случайный пароль из 8 символов
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let newPass = "";
+  for (let i = 0; i < 8; i++) {
+    newPass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  // Обновляем пароль в хранилище
+  users[userIndex].pass = encode(newPass);
+  try {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    return { newPassword: newPass };
+  } catch {
+    return { error: "Браузер запретил обновление данных" };
+  }
 }
 
 export function logout() {
