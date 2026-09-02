@@ -37,6 +37,7 @@ import {
   mbSize,
 } from "../lib/extract";
 
+
 const PHASES = [
   "Нормализация текста",
   "Разбиение на шинглы",
@@ -44,6 +45,7 @@ const PHASES = [
   "Нейродетектор ИИ",
   "Формирование отчёта",
 ];
+
 
 const VERDICTS = {
   clean: {
@@ -66,11 +68,13 @@ const VERDICTS = {
   },
 } as const;
 
+
 interface Props {
   user: User | null;
   onRequireAuth: () => void;
   notify: (msg: string, tone?: ToastTone) => void;
 }
+
 
 export default function Checker({ user, onRequireAuth, notify }: Props) {
   const [tab, setTab] = useState<"text" | "file">("text");
@@ -88,27 +92,33 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [workTitle, setWorkTitle] = useState("");
   const timers = useRef<number[]>([]);
   const intervalRef = useRef<number | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
 
+
   useEffect(() => {
     setHistory(user ? loadHistory(user.email) : []);
   }, [user]);
+
 
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [logs]);
 
+
   useEffect(() => () => {
     timers.current.forEach((t) => window.clearTimeout(t));
     if (intervalRef.current) window.clearInterval(intervalRef.current);
   }, []);
 
+
   const pushLog = (msg: string) =>
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString("ru-RU")}] ${msg}`]);
+
 
   const handleStart = () => {
     const content = (tab === "file" ? fileText : text).trim();
@@ -126,6 +136,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
       return;
     }
 
+
     timers.current.forEach((t) => window.clearTimeout(t));
     timers.current = [];
     setPhase("running");
@@ -134,20 +145,26 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     setPhaseIdx(0);
     setProgress(0);
 
+
     const words = content.split(/\s+/).filter(Boolean).length;
     const shingles = Math.max(1, Math.floor(content.length / 9));
 
+
     pushLog(`Принято ${fmt(content.length)} знаков · ${fmt(words)} слов`);
+
 
     const total = 3800 + Math.min(2400, Math.round(content.length / 50));
     const t0 = performance.now();
+
 
     intervalRef.current = window.setInterval(() => {
       setProgress(Math.min(99, ((performance.now() - t0) / total) * 100));
     }, 110);
 
+
     const at = (frac: number, fn: () => void) =>
       timers.current.push(window.setTimeout(fn, frac * total));
+
 
     at(0.16, () => {
       setPhaseIdx(1);
@@ -168,6 +185,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     at(1.0, () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       const res = analyze(content, user);
+      res.workTitle = workTitle.trim();
       pushLog(
         `Совпадений в базе: ${res.sources.length} · ИИ-фрагментов: ${
           res.segments.filter((s) => s.kind === "ai").length
@@ -187,6 +205,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
       );
     });
   };
+
 
   const readFile = async (f: File) => {
     if (extracting) return;
@@ -239,6 +258,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     }
   };
 
+
   const resetFile = () => {
     setFileText("");
     setFileName(null);
@@ -246,10 +266,12 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     setFileNote(null);
   };
 
+
   const len = tab === "file" ? fileText.length : text.length;
   const over = len > LIMIT;
   const words = tab === "file" ? fileText : text;
   const wordCount = words.trim() ? words.trim().split(/\s+/).filter(Boolean).length : 0;
+
 
   const openFromHistory = (e: HistoryEntry) => {
     timers.current.forEach((t) => window.clearTimeout(t));
@@ -259,8 +281,10 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
     consoleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+
   const segCount = (k: "original" | "suspect" | "ai") =>
     result ? result.segments.filter((s) => s.kind === k).length : 0;
+
 
   return (
     <section id="checker" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 pb-16">
@@ -284,6 +308,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
               ))}
             </div>
           </div>
+
 
           {tab === "text" ? (
             <div className="mt-4">
@@ -400,6 +425,21 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
             </div>
           )}
 
+
+          <div className="mt-4">
+            <label className="mb-1.5 block font-mono text-xs text-fog-500">
+              Название проверяемой работы
+            </label>
+            <input
+              type="text"
+              value={workTitle}
+              onChange={(e) => setWorkTitle(e.target.value)}
+              placeholder="Например: Влияние ИИ на образование"
+              className="w-full rounded-lg border border-ink-600 bg-ink-950/70 px-4 py-3 text-sm text-fog-100 outline-none transition-colors placeholder:text-fog-600 focus:border-mint-500/60"
+            />
+          </div>
+
+
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
             <span className="flex items-center gap-4">
               <span
@@ -420,6 +460,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
               </button>
             )}
           </div>
+
 
           <button
             onClick={handleStart}
@@ -448,6 +489,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
           </p>
         </div>
 
+
         <div
           ref={consoleRef}
           className="relative scroll-mt-24 overflow-hidden rounded-xl border border-ink-600 bg-ink-900/80 lg:min-h-[540px]"
@@ -468,6 +510,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
               </span>
             </span>
           </div>
+
 
           {phase === "idle" && (
             <div className="flex h-[calc(100%-45px)] min-h-[420px] flex-col items-center justify-center gap-6 p-8 text-center">
@@ -497,6 +540,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
               )}
             </div>
           )}
+
 
           {phase === "running" && (
             <div className="p-5 sm:p-6">
@@ -550,6 +594,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
               </div>
             </div>
           )}
+
 
           {phase === "done" && result && (
             <div className="rise-in relative p-5 sm:p-6">
@@ -640,7 +685,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
                   onClick={async () => {
                     setPdfLoading(true);
                     try {
-                      await downloadPDFReport(result);
+                      await downloadPDFReport(result, workTitle.trim());
                       notify("PDF-отчёт сохранён в загрузки", "ok");
                     } catch (e) {
                       notify("Не удалось создать PDF", "err");
@@ -677,6 +722,7 @@ export default function Checker({ user, onRequireAuth, notify }: Props) {
           )}
         </div>
       </div>
+
 
       <div className="mt-10">
         <div className="flex items-center gap-3">

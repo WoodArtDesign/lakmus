@@ -1,12 +1,15 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+
 export const LIMIT = 200_000;
 export const MIN_CHARS = 120;
 export const fmt = (n: number) => n.toLocaleString("ru-RU");
 
+
 export type SegmentKind = "original" | "suspect" | "ai";
 export type Verdict = "clean" | "mixed" | "risk";
+
 
 export interface Segment {
   text: string;
@@ -14,17 +17,20 @@ export interface Segment {
   source?: string;
 }
 
+
 export interface SourceMatch {
   source: string;
   url: string;
   percent: number;
 }
 
+
 export interface AnalysisResult {
   id: string;
   createdAt: number;
   email: string;
   name: string;
+  workTitle: string;
   chars: number;
   words: number;
   shingles: number;
@@ -38,15 +44,18 @@ export interface AnalysisResult {
   resources: { title: string; url: string }[];
 }
 
+
 export interface User {
   email: string;
   name: string;
 }
 
+
 export interface HistoryEntry {
   result: AnalysisResult;
   snippet: string;
 }
+
 
 function splitSentences(text: string): string[] {
   const flat = text.replace(/\s+/g, " ").trim();
@@ -64,6 +73,7 @@ function splitSentences(text: string): string[] {
   return parts.slice(0, 90);
 }
 
+
 const STOP = new Set([
   "который", "которая", "которое", "также", "однако", "поэтому", "между",
   "более", "менее", "таким", "образом", "может", "могут", "будет", "этого",
@@ -71,6 +81,7 @@ const STOP = new Set([
   "когда", "если", "того", "этом", "свою", "него", "есть", "быть", "лишь",
   "даже", "всех", "всего", "статья", "статьи", "только", "можно", "нужно",
 ]);
+
 
 function extractKeywords(text: string): string[] {
   const ws = text
@@ -80,6 +91,7 @@ function extractKeywords(text: string): string[] {
     .filter((w) => w.length > 5 && !STOP.has(w));
   return Array.from(new Set(ws)).slice(0, 80);
 }
+
 
 const SOURCE_POOL = [
   { s: "Википедия", u: "ru.wikipedia.org" },
@@ -92,6 +104,7 @@ const SOURCE_POOL = [
   { s: "Научная электронная библиотека", u: "nauka.ru" },
 ];
 
+
 const METHODS_LIST = [
   "Сравнительный анализ n-грамм (n=3, 4, 5)",
   "Сопоставление с базами научных публикаций",
@@ -99,6 +112,7 @@ const METHODS_LIST = [
   "Статистический анализ стилометрии",
   "Проверка по открытым академическим репозиториям",
 ];
+
 
 const RESOURCES_LIST = [
   { title: "КиберЛенинка", url: "cyberleninka.ru" },
@@ -110,6 +124,7 @@ const RESOURCES_LIST = [
   { title: "Диссертации и авторефераты", url: "rsl.ru" },
 ];
 
+
 export function analyze(raw: string, user: User): AnalysisResult {
   const text = raw.trim();
   const chars = text.length;
@@ -117,19 +132,23 @@ export function analyze(raw: string, user: User): AnalysisResult {
   const shingles = Math.max(1, Math.floor(chars / 9));
   const sentences = splitSentences(text);
 
+
   const base = {
     id: `LM-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 36).toString(36).toUpperCase()}`,
     createdAt: Date.now(),
     email: user.email,
     name: user.name,
+    workTitle: "",
     chars,
     words,
     shingles,
   };
 
+
   const originality = 75 + Math.floor(Math.random() * 25);
   const ai = 2 + Math.floor(Math.random() * 14);
   const borrowed = 100 - originality;
+
 
   const verdict: Verdict =
     originality >= 85 && ai <= 20
@@ -138,12 +157,14 @@ export function analyze(raw: string, user: User): AnalysisResult {
       ? "risk"
       : "mixed";
 
+
   const kws = extractKeywords(text);
   const topic = () => {
     if (!kws.length) return "документа";
     const k = kws[Math.floor(Math.random() * kws.length)];
     return k.charAt(0).toUpperCase() + k.slice(1);
   };
+
 
   const nSrc = borrowed === 0 ? 0 : borrowed > 25 ? 3 : borrowed > 10 ? 2 : 1;
   const weights = Array.from({ length: nSrc }, () => 0.5 + Math.random());
@@ -157,6 +178,7 @@ export function analyze(raw: string, user: User): AnalysisResult {
     };
   });
 
+
   const n = sentences.length;
   const idx = sentences.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) {
@@ -168,6 +190,7 @@ export function analyze(raw: string, user: User): AnalysisResult {
   const susSet = new Set(idx.slice(0, nSus));
   const aiSet = new Set(idx.slice(nSus, nSus + nAi));
 
+
   const segments: Segment[] = sentences.map((s, i) => {
     if (susSet.has(i))
       return {
@@ -178,6 +201,7 @@ export function analyze(raw: string, user: User): AnalysisResult {
     if (aiSet.has(i)) return { text: s, kind: "ai" as const };
     return { text: s, kind: "original" as const };
   });
+
 
   return {
     ...base,
@@ -192,12 +216,14 @@ export function analyze(raw: string, user: User): AnalysisResult {
   };
 }
 
+
 interface StoredUser extends User {
   pass: string;
 }
 const USERS_KEY = "lakmus_users_v1";
 const SESSION_KEY = "lakmus_session_v1";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 
 function loadUsers(): StoredUser[] {
   try {
@@ -207,7 +233,9 @@ function loadUsers(): StoredUser[] {
   }
 }
 
+
 const encode = (s: string) => btoa(unescape(encodeURIComponent(s)));
+
 
 export function register(
   emailRaw: string,
@@ -230,6 +258,7 @@ export function register(
   return { user: { email, name: name.trim() } };
 }
 
+
 export function login(emailRaw: string, pass: string): { user?: User; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   const u = loadUsers().find((x) => x.email === email);
@@ -242,6 +271,7 @@ export function login(emailRaw: string, pass: string): { user?: User; error?: st
   return { user: { email: u.email, name: u.name } };
 }
 
+
 export function resetPassword(emailRaw: string): { newPassword?: string; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   const users = loadUsers();
@@ -251,11 +281,13 @@ export function resetPassword(emailRaw: string): { newPassword?: string; error?:
     return { error: "Пользователь с таким e-mail не найден" };
   }
 
+
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   let newPass = "";
   for (let i = 0; i < 8; i++) {
     newPass += chars.charAt(Math.floor(Math.random() * chars.length));
   }
+
 
   users[userIndex].pass = encode(newPass);
   try {
@@ -266,6 +298,7 @@ export function resetPassword(emailRaw: string): { newPassword?: string; error?:
   }
 }
 
+
 export function updateUserName(emailRaw: string, newName: string): { user?: User; error?: string } {
   const email = emailRaw.trim().toLowerCase();
   const users = loadUsers();
@@ -274,6 +307,7 @@ export function updateUserName(emailRaw: string, newName: string): { user?: User
   if (userIndex === -1) {
     return { error: "Пользователь не найден" };
   }
+
 
   users[userIndex].name = newName.trim();
   try {
@@ -284,6 +318,7 @@ export function updateUserName(emailRaw: string, newName: string): { user?: User
   }
 }
 
+
 export function logout() {
   try {
     localStorage.removeItem(SESSION_KEY);
@@ -291,6 +326,7 @@ export function logout() {
     /* ignore */
   }
 }
+
 
 export function getSession(): User | null {
   try {
@@ -303,7 +339,9 @@ export function getSession(): User | null {
   }
 }
 
+
 const histKey = (email: string) => `lakmus_hist_${email}`;
+
 
 export function loadHistory(email: string): HistoryEntry[] {
   try {
@@ -312,6 +350,7 @@ export function loadHistory(email: string): HistoryEntry[] {
     return [];
   }
 }
+
 
 export function saveHistory(email: string, entry: HistoryEntry) {
   try {
@@ -323,10 +362,12 @@ export function saveHistory(email: string, entry: HistoryEntry) {
   }
 }
 
+
 export function buildReport(r: AnalysisResult): string {
   const kind = (s: Segment) =>
     s.kind === "original" ? "OK " : s.kind === "ai" ? "AI " : "BOR";
   const fio = r.name && r.name.trim() ? r.name : "Пользователь не указал ФИО";
+
 
   return [
     "ЛАКМУС — ОТЧЁТ О ПРОВЕРКЕ ТЕКСТА",
@@ -334,6 +375,7 @@ export function buildReport(r: AnalysisResult): string {
     `Отчёт: ${r.id}`,
     `Дата: ${new Date(r.createdAt).toLocaleString("ru-RU")}`,
     `Текст проверялся для: ${fio}`,
+    `Название работы: ${r.workTitle || "не указано"}`,
     `E-mail: ${r.email}`,
     `Объём: ${fmt(r.chars)} знаков · ${fmt(r.words)} слов`,
     " ",
@@ -363,6 +405,7 @@ export function buildReport(r: AnalysisResult): string {
   ].join("\n");
 }
 
+
 export function downloadReport(r: AnalysisResult) {
   const blob = new Blob(["\ufeff" + buildReport(r)], {
     type: "text/plain;charset=utf-8",
@@ -375,9 +418,12 @@ export function downloadReport(r: AnalysisResult) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadPDFReport(r: AnalysisResult) {
+
+export async function downloadPDFReport(r: AnalysisResult, workTitle?: string) {
   const fio = r.name && r.name.trim() ? r.name : "Пользователь не указал ФИО";
   const date = new Date(r.createdAt).toLocaleString("ru-RU");
+  const title = workTitle || r.workTitle || "Название работы не указано";
+
 
   const container = document.createElement("div");
   container.style.cssText = `
@@ -387,6 +433,7 @@ export async function downloadPDFReport(r: AnalysisResult) {
     font-family: 'Manrope', 'Segoe UI', Arial, sans-serif;
     font-size: 13px; line-height: 1.5;
   `;
+
 
   container.innerHTML = `
     <div style="border-bottom: 3px solid #2ecf9c; padding-bottom: 16px; margin-bottom: 24px;">
@@ -398,6 +445,7 @@ export async function downloadPDFReport(r: AnalysisResult) {
       <div><strong>Дата:</strong> ${date}</div>
       <div><strong>Текст проверялся для:</strong> ${fio}</div>
       <div><strong>E-mail:</strong> ${r.email}</div>
+      <div><strong>Название работы:</strong> ${title}</div>
       <div><strong>Объём:</strong> ${fmt(r.chars)} знаков · ${fmt(r.words)} слов</div>
     </div>
     <div style="display: flex; gap: 16px; margin-bottom: 28px;">
@@ -484,7 +532,9 @@ export async function downloadPDFReport(r: AnalysisResult) {
     </div>
   `;
 
+
   document.body.appendChild(container);
+
 
   try {
     const canvas = await html2canvas(container, {
@@ -494,22 +544,27 @@ export async function downloadPDFReport(r: AnalysisResult) {
     });
     const imgData = canvas.toDataURL("image/png");
 
+
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: "a4",
     });
 
+
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const imgWidth = pageWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+
     let heightLeft = imgHeight;
     let position = 0;
 
+
     pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
+
 
     while (heightLeft > 0) {
       position = heightLeft - imgHeight;
@@ -517,6 +572,7 @@ export async function downloadPDFReport(r: AnalysisResult) {
       pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
     }
+
 
     pdf.save(`lakmus-${r.id}.pdf`);
   } finally {
